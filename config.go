@@ -2,9 +2,11 @@ package gocloudclient
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -29,6 +31,9 @@ type ConfigResponse struct {
 	PropertySources []PropertySource `json:"propertySources"`
 }
 
+type ConfigEnvVariables struct {
+}
+
 // PropertySource represents a property source in the config response
 type PropertySource struct {
 	Name   string                 `json:"name"`
@@ -42,6 +47,38 @@ type ClientConfig struct {
 	Password   string
 	Timeout    time.Duration
 	HTTPClient *http.Client
+}
+
+const (
+	APP_PREFIX = "app"
+	YAML       = "yaml"
+	TOML       = "toml"
+	JSON       = "json"
+	ENV        = "enc=v"
+)
+
+func init() {
+	//Get File Contents
+
+	//Check if there is a .env file and load data. Should be in a specific format
+	//The data should have a defined prefix(going with app.{conf-format}
+
+	switch {
+
+	}
+
+}
+
+func fetchConfigFile(filename string) ([]byte, error) {
+	_, err := os.Stat(filename)
+	if err != nil {
+		return nil, errors.New("error fetching file")
+	}
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // NewClient creates a new Spring Cloud Config Server client

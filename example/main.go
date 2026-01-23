@@ -8,19 +8,6 @@ import (
 	gocloudclient "go-cloud-client"
 )
 
-const APPLICATION_PREFIX_NAME = "app"
-
-const ()
-
-func init() {
-	//Check if there is a .env file and load data. Should be in a specific format
-	//The data should have a defined prefix(going with app.{conf-format}
-	switch expr {
-
-	}
-
-}
-
 func main() {
 	// Create a new client
 	client, err := gocloudclient.NewClient(gocloudclient.ClientConfig{
