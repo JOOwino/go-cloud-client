@@ -1,0 +1,6 @@
+base_url : "http://localhost:8081"
+application_name : "go-client"
+profile : "development"
+username : ""
+password : ""
+timeout : 10

@@ -39,7 +39,7 @@ func TestNewClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := NewClient(tt.config)
+			client, err := NewClient()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewClient() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -79,14 +79,12 @@ func TestGetConfig(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := NewClient(ClientConfig{
-		BaseURL: server.URL,
-	})
+	client, err := NewClient()
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	config, err := client.GetConfig("myapp", "dev", "master")
+	config, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig() error = %v", err)
 	}
@@ -130,10 +128,10 @@ func TestGetConfigWithDefaults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient(ClientConfig{BaseURL: server.URL})
+	client, _ := NewClient()
 
 	// Test default profile
-	_, err := client.GetConfig("myapp", "", "")
+	_, err := client.GetConfig()
 	if err != nil {
 		t.Errorf("GetConfig() with empty profile/label should work: %v", err)
 	}
@@ -158,7 +156,7 @@ func TestCachedClient(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewClient(ClientConfig{BaseURL: server.URL})
+	client, _ := NewClient()
 	cachedClient := NewCachedClient(client, 5*time.Minute)
 
 	// First call - should hit server

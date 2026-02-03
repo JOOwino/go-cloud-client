@@ -2,7 +2,6 @@ package gocloudclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,10 +14,13 @@ import (
 
 // Client represents a Spring Cloud Config Server client
 type Client struct {
-	baseURL    string
-	httpClient *http.Client
-	username   string
-	password   string
+	BaseURL         string `yaml:"base_url"`
+	Timeout         int    `yaml:"timeout"`
+	httpClient      *http.Client
+	ApplicationName string `yaml:"application_name"`
+	Profile         string `yaml:"profile"`
+	Username        string `yaml:"username"`
+	Password        string `yaml:"password"`
 }
 
 // ConfigResponse represents the response from Spring Cloud Config Server
@@ -45,68 +47,40 @@ type ClientConfig struct {
 	BaseURL    string
 	Username   string
 	Password   string
-	Timeout    time.Duration
+	Timeout    int
 	HTTPClient *http.Client
 }
 
-const (
-	APP_PREFIX = "app"
-	YAML       = "yaml"
-	TOML       = "toml"
-	JSON       = "json"
-	ENV        = "enc=v"
-)
-
-func init() {
-	//Get File Contents
-
-	//Check if there is a .env file and load data. Should be in a specific format
-	//The data should have a defined prefix(going with app.{conf-format}
-
-	switch {
-
-	}
-
-}
-
-func fetchConfigFile(filename string) ([]byte, error) {
-	_, err := os.Stat(filename)
-	if err != nil {
-		return nil, errors.New("error fetching file")
-	}
-	data, err := os.ReadFile(filename)
+// NewClient creates a new Spring Cloud Config Server client
+func NewClient() (*Client, error) {
+	dir, _ := os.Getwd()
+	data, err := os.ReadFile(dir + "/app.yaml")
 	if err != nil {
 		return nil, err
 	}
-	return data, nil
-}
+	var config *Client
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
 
-// NewClient creates a new Spring Cloud Config Server client
-func NewClient(config ClientConfig) (*Client, error) {
+	fmt.Printf("Config: %v\n", config)
+
 	if config.BaseURL == "" {
 		return nil, fmt.Errorf("baseURL is required")
 	}
 
 	// Remove trailing slash if present
-	baseURL := strings.TrimSuffix(config.BaseURL, "/")
+	config.BaseURL = strings.TrimSuffix(config.BaseURL, "/")
 
-	httpClient := config.HTTPClient
-	if httpClient == nil {
-		timeout := config.Timeout
-		if timeout == 0 {
-			timeout = 30 * time.Second
-		}
-		httpClient = &http.Client{
-			Timeout: timeout,
-		}
+	timeout := time.Duration(config.Timeout)
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	config.httpClient = &http.Client{
+		Timeout: timeout,
 	}
 
-	return &Client{
-		baseURL:    baseURL,
-		httpClient: httpClient,
-		username:   config.Username,
-		password:   config.Password,
-	}, nil
+	return config, nil
 }
 
 // GetConfig fetches configuration from Spring Cloud Config Server
@@ -114,21 +88,17 @@ func NewClient(config ClientConfig) (*Client, error) {
 //   - application: The application name (e.g., "myapp")
 //   - profile: The profile (e.g., "dev", "prod"). Can be comma-separated for multiple profiles
 //   - label: Optional label/branch (e.g., "master", "develop"). Defaults to "master" if empty
-func (c *Client) GetConfig(application, profile, label string) (*ConfigResponse, error) {
-	if application == "" {
+func (c *Client) GetConfig() (*ConfigResponse, error) {
+	if c.ApplicationName == "" {
 		return nil, fmt.Errorf("application name is required")
 	}
 
-	if profile == "" {
-		profile = "default"
-	}
-
-	if label == "" {
-		label = "master"
+	if c.Profile == "" {
+		c.ApplicationName = "default"
 	}
 
 	// Build the URL: {baseURL}/{application}/{profile}/{label}
-	url := fmt.Sprintf("%s/%s/%s/%s", c.baseURL, application, profile, label)
+	url := fmt.Sprintf("%s/%s/%s", c.BaseURL, c.ApplicationName, c.Profile)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -136,8 +106,8 @@ func (c *Client) GetConfig(application, profile, label string) (*ConfigResponse,
 	}
 
 	// Set basic auth if credentials are provided
-	if c.username != "" && c.password != "" {
-		req.SetBasicAuth(c.username, c.password)
+	if c.Username != "" && c.Password != "" {
+		req.SetBasicAuth(c.Username, c.Password)
 	}
 
 	// Set Accept header to prefer JSON
@@ -176,9 +146,9 @@ func (c *Client) GetConfigYAML(application, profile, label string) (string, erro
 		label = "master"
 	}
 
-	url := fmt.Sprintf("%s/%s-%s.yml", c.baseURL, application, profile)
+	url := fmt.Sprintf("%s/%s-%s.yml", c.BaseURL, application, profile)
 	if label != "" && label != "master" {
-		url = fmt.Sprintf("%s/%s/%s-%s.yml", c.baseURL, label, application, profile)
+		url = fmt.Sprintf("%s/%s/%s-%s.yml", c.BaseURL, label, application, profile)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -186,8 +156,8 @@ func (c *Client) GetConfigYAML(application, profile, label string) (string, erro
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	if c.username != "" && c.password != "" {
-		req.SetBasicAuth(c.username, c.password)
+	if c.Username != "" && c.Password != "" {
+		req.SetBasicAuth(c.Username, c.Password)
 	}
 
 	req.Header.Set("Accept", "application/x-yaml, text/yaml, text/x-yaml")

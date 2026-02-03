@@ -10,18 +10,13 @@ import (
 
 func main() {
 	// Create a new client
-	client, err := gocloudclient.NewClient(gocloudclient.ClientConfig{
-		BaseURL:  "http://localhost:8888",
-		Username: "", // Optional: if your config server requires auth
-		Password: "", // Optional
-		Timeout:  30 * time.Second,
-	})
+	client, err := gocloudclient.NewClient()
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
 	// Fetch configuration
-	config, err := client.GetConfig("myapp", "dev", "master")
+	config, err := client.GetConfig()
 	if err != nil {
 		log.Fatalf("Failed to fetch config: %v", err)
 	}

@@ -48,7 +48,7 @@ func (c *CachedClient) GetConfig(application, profile, label string) (*ConfigRes
 	c.cacheMutex.RUnlock()
 
 	// Fetch from server
-	config, err := c.client.GetConfig(application, profile, label)
+	config, err := c.client.GetConfig()
 	if err != nil {
 		return nil, err
 	}
