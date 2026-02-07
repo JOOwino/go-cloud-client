@@ -8,7 +8,7 @@ import (
 
 // CachedClient wraps a Client with caching capabilities
 type CachedClient struct {
-	client     *Client
+	client     *AppClient
 	cache      map[string]*cacheEntry
 	cacheMutex sync.RWMutex
 	defaultTTL time.Duration
@@ -20,7 +20,7 @@ type cacheEntry struct {
 }
 
 // NewCachedClient creates a new cached client wrapper
-func NewCachedClient(client *Client, defaultTTL time.Duration) *CachedClient {
+func NewCachedClient(client *AppClient, defaultTTL time.Duration) *CachedClient {
 	if defaultTTL == 0 {
 		defaultTTL = 5 * time.Minute // Default 5 minutes
 	}

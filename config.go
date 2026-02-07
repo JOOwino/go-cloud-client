@@ -12,8 +12,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Client represents a Spring Cloud Config Server client
-type Client struct {
+// AppClient represents a Spring Cloud Config Server client
+type AppClient struct {
+	BaseURL         string `yaml:"base_url"`
+	Timeout         int    `yaml:"timeout"`
+	httpClient      *http.Client
+	ApplicationName string `yaml:"application_name"`
+	Profile         string `yaml:"profile"`
+	Username        string `yaml:"username"`
+	Password        string `yaml:"password"`
+}
+
+type AppClientConfig struct {
 	BaseURL         string `yaml:"base_url"`
 	Timeout         int    `yaml:"timeout"`
 	httpClient      *http.Client
@@ -52,14 +62,14 @@ type ClientConfig struct {
 }
 
 // NewClient creates a new Spring Cloud Config Server client
-func NewClient() (*Client, error) {
+func NewClient() (*AppClient, error) {
 	dir, _ := os.Getwd()
 	data, err := os.ReadFile(dir + "/app.yaml")
 	if err != nil {
 		return nil, err
 	}
-	var config *Client
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	config := &AppClient{}
+	if err := yaml.Unmarshal(data, config); err != nil {
 		return nil, err
 	}
 
@@ -72,14 +82,13 @@ func NewClient() (*Client, error) {
 	// Remove trailing slash if present
 	config.BaseURL = strings.TrimSuffix(config.BaseURL, "/")
 
-	timeout := time.Duration(config.Timeout)
+	timeout := time.Duration(config.Timeout) * time.Second
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
 	config.httpClient = &http.Client{
 		Timeout: timeout,
 	}
-
 	return config, nil
 }
 
@@ -88,7 +97,7 @@ func NewClient() (*Client, error) {
 //   - application: The application name (e.g., "myapp")
 //   - profile: The profile (e.g., "dev", "prod"). Can be comma-separated for multiple profiles
 //   - label: Optional label/branch (e.g., "master", "develop"). Defaults to "master" if empty
-func (c *Client) GetConfig() (*ConfigResponse, error) {
+func (c *AppClient) GetConfig() (*ConfigResponse, error) {
 	if c.ApplicationName == "" {
 		return nil, fmt.Errorf("application name is required")
 	}
@@ -110,8 +119,12 @@ func (c *Client) GetConfig() (*ConfigResponse, error) {
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 
+	fmt.Println("Debug-2")
+
 	// Set Accept header to prefer JSON
 	req.Header.Set("Accept", "application/json")
+
+	fmt.Printf("Timeout: %v\n", c.httpClient.Timeout)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -123,17 +136,24 @@ func (c *Client) GetConfig() (*ConfigResponse, error) {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("config server returned status %d: %s", resp.StatusCode, string(body))
 	}
+	fmt.Println("Debug-02")
 
 	var configResp ConfigResponse
 	if err := json.NewDecoder(resp.Body).Decode(&configResp); err != nil {
+		fmt.Println("Debug-03")
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
+	fmt.Println("Debug-04")
 
 	return &configResp, nil
 }
 
+func (c *AppClient) Sample() error {
+	return nil
+}
+
 // GetConfigYAML fetches configuration and returns it in YAML format
-func (c *Client) GetConfigYAML(application, profile, label string) (string, error) {
+func (c *AppClient) GetConfigYAML(application, profile, label string) (string, error) {
 	if application == "" {
 		return "", fmt.Errorf("application name is required")
 	}
