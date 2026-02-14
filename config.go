@@ -97,7 +97,7 @@ func NewClient() (*AppClient, error) {
 //   - application: The application name (e.g., "myapp")
 //   - profile: The profile (e.g., "dev", "prod"). Can be comma-separated for multiple profiles
 //   - label: Optional label/branch (e.g., "master", "develop"). Defaults to "master" if empty
-func (c *AppClient) GetConfig() (*ConfigResponse, error) {
+func (c *AppClient) GetConfig(decoder Decoder) (*ConfigResponse, error) {
 	if c.ApplicationName == "" {
 		return nil, fmt.Errorf("application name is required")
 	}
@@ -119,12 +119,8 @@ func (c *AppClient) GetConfig() (*ConfigResponse, error) {
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 
-	fmt.Println("Debug-2")
-
-	// Set Accept header to prefer JSON
+	//Set Accept header to prefer JSON
 	req.Header.Set("Accept", "application/json")
-
-	fmt.Printf("Timeout: %v\n", c.httpClient.Timeout)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -136,69 +132,21 @@ func (c *AppClient) GetConfig() (*ConfigResponse, error) {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("config server returned status %d: %s", resp.StatusCode, string(body))
 	}
-	fmt.Println("Debug-02")
 
 	var configResp ConfigResponse
 	if err := json.NewDecoder(resp.Body).Decode(&configResp); err != nil {
-		fmt.Println("Debug-03")
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	fmt.Println("Debug-04")
+
+	properties := configResp.GetPropertySources()
+	data, err := decoder.decode(properties)
+	if err != nil {
+		fmt.Errorf("error decoding : %v \n", err)
+	}
+
+	fmt.Printf("DATA: \n %s\n", data)
 
 	return &configResp, nil
-}
-
-func (c *AppClient) Sample() error {
-	return nil
-}
-
-// GetConfigYAML fetches configuration and returns it in YAML format
-func (c *AppClient) GetConfigYAML(application, profile, label string) (string, error) {
-	if application == "" {
-		return "", fmt.Errorf("application name is required")
-	}
-
-	if profile == "" {
-		profile = "default"
-	}
-
-	if label == "" {
-		label = "master"
-	}
-
-	url := fmt.Sprintf("%s/%s-%s.yml", c.BaseURL, application, profile)
-	if label != "" && label != "master" {
-		url = fmt.Sprintf("%s/%s/%s-%s.yml", c.BaseURL, label, application, profile)
-	}
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	if c.Username != "" && c.Password != "" {
-		req.SetBasicAuth(c.Username, c.Password)
-	}
-
-	req.Header.Set("Accept", "application/x-yaml, text/yaml, text/x-yaml")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to execute request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("config server returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	return string(body), nil
 }
 
 // GetPropertySources returns all property sources flattened into a single map
@@ -274,24 +222,4 @@ func (configResp *ConfigResponse) GetBool(key string) (bool, bool) {
 	default:
 		return false, false
 	}
-}
-
-// ToYAML converts the configuration response to YAML format
-func (configResp *ConfigResponse) ToYAML() (string, error) {
-	properties := configResp.GetPropertySources()
-	data, err := yaml.Marshal(properties)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal to YAML: %w", err)
-	}
-	return string(data), nil
-}
-
-// ToJSON converts the configuration response to JSON format
-func (configResp *ConfigResponse) ToJSON() (string, error) {
-	properties := configResp.GetPropertySources()
-	data, err := json.MarshalIndent(properties, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal to JSON: %w", err)
-	}
-	return string(data), nil
 }

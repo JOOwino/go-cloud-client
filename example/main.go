@@ -17,33 +17,13 @@ func main() {
 	}
 
 	// Fetch configuration
-	config, err := client.GetConfig()
+	config, err := client.GetConfig(gocloudclient.YamlDecoder{})
 	if err != nil {
 		log.Fatalf("Failed to fetch config: %v", err)
 	}
 
-	fmt.Printf("Application: %s\n", config.Name)
 	fmt.Printf("Profiles: %v\n", config.Profiles)
 	fmt.Printf("Label: %s\n", config.Label)
-
-	// Get specific values
-	dbHost, _ := config.GetString("spring.datasource.host")
-	dbPort, _ := config.GetInt("spring.datasource.port")
-	debugMode, _ := config.GetBool("app.debug")
-
-	fmt.Printf("\nDatabase Host: %s\n", dbHost)
-	fmt.Printf("Database Port: %d\n", dbPort)
-	fmt.Printf("Debug Mode: %v\n", debugMode)
-
-	// Get all properties as a map
-	allProperties := config.GetPropertySources()
-	fmt.Printf("\nTotal properties: %d\n", len(allProperties))
-
-	// Convert to YAML
-	yamlConfig, err := config.ToYAML()
-	if err == nil {
-		fmt.Printf("\nYAML Configuration:\n%s\n", yamlConfig)
-	}
 
 	// Example with cached client
 	fmt.Println("\n=== Using Cached Client ===")
