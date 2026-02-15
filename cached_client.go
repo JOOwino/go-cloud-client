@@ -15,7 +15,7 @@ type CachedClient struct {
 }
 
 type cacheEntry struct {
-	config    *ConfigResponse
+	config    any
 	expiresAt time.Time
 }
 
@@ -33,35 +33,35 @@ func NewCachedClient(client *AppClient, defaultTTL time.Duration) *CachedClient 
 }
 
 // GetConfig fetches configuration with caching
-func (c *CachedClient) GetConfig(application, profile, label string) (*ConfigResponse, error) {
+func (c *CachedClient) GetConfig(application, profile, label string, decoder Decoder, v any) error {
 	cacheKey := fmt.Sprintf("%s:%s:%s", application, profile, label)
 
 	// Try to get from cache
 	c.cacheMutex.RLock()
 	if entry, exists := c.cache[cacheKey]; exists {
 		if time.Now().Before(entry.expiresAt) {
-			config := entry.config
+			v = entry.config
 			c.cacheMutex.RUnlock()
-			return config, nil
+			return nil
 		}
 	}
 	c.cacheMutex.RUnlock()
 
 	// Fetch from server
-	config, err := c.client.GetConfig(JsonDecoder{})
+	err := c.client.GetConfig(decoder, v)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Store in cache
 	c.cacheMutex.Lock()
 	c.cache[cacheKey] = &cacheEntry{
-		config:    config,
+		config:    v,
 		expiresAt: time.Now().Add(c.defaultTTL),
 	}
 	c.cacheMutex.Unlock()
 
-	return config, nil
+	return nil
 }
 
 // ClearCache clears all cached entries

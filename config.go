@@ -1,7 +1,6 @@
 package gocloudclient
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -35,12 +34,12 @@ type AppClientConfig struct {
 
 // ConfigResponse represents the response from Spring Cloud Config Server
 type ConfigResponse struct {
-	Name            string           `json:"name"`
-	Profiles        []string         `json:"profiles"`
-	Label           string           `json:"label,omitempty"`
-	Version         string           `json:"version,omitempty"`
-	State           string           `json:"state,omitempty"`
-	PropertySources []PropertySource `json:"propertySources"`
+	Name            string           `yaml:"name"`
+	Profiles        []string         `yaml:"profiles"`
+	Label           string           `yaml:"label,omitempty"`
+	Version         string           `yaml:"version,omitempty"`
+	State           string           `yaml:"state,omitempty"`
+	PropertySources []PropertySource `yaml:"propertySources"`
 }
 
 type ConfigEnvVariables struct {
@@ -97,9 +96,9 @@ func NewClient() (*AppClient, error) {
 //   - application: The application name (e.g., "myapp")
 //   - profile: The profile (e.g., "dev", "prod"). Can be comma-separated for multiple profiles
 //   - label: Optional label/branch (e.g., "master", "develop"). Defaults to "master" if empty
-func (c *AppClient) GetConfig(decoder Decoder) (*ConfigResponse, error) {
+func (c *AppClient) GetConfig(decoder Decoder, v any) error {
 	if c.ApplicationName == "" {
-		return nil, fmt.Errorf("application name is required")
+		return fmt.Errorf("application name is required")
 	}
 
 	if c.Profile == "" {
@@ -107,11 +106,13 @@ func (c *AppClient) GetConfig(decoder Decoder) (*ConfigResponse, error) {
 	}
 
 	// Build the URL: {baseURL}/{application}/{profile}/{label}
-	url := fmt.Sprintf("%s/%s/%s", c.BaseURL, c.ApplicationName, c.Profile)
+	url := fmt.Sprintf("%s/%s-%s.%s", c.BaseURL, c.ApplicationName, c.Profile, decoder.confFormat())
+
+	fmt.Printf("URL: %s\n", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Set basic auth if credentials are provided
@@ -124,29 +125,20 @@ func (c *AppClient) GetConfig(decoder Decoder) (*ConfigResponse, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
+		return fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Printf("error during body closure")
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("config server returned status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("config server returned status %d: %s", resp.StatusCode, string(body))
 	}
-
-	var configResp ConfigResponse
-	if err := json.NewDecoder(resp.Body).Decode(&configResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	properties := configResp.GetPropertySources()
-	data, err := decoder.decode(properties)
-	if err != nil {
-		fmt.Errorf("error decoding : %v \n", err)
-	}
-
-	fmt.Printf("DATA: \n %s\n", data)
-
-	return &configResp, nil
+	return decoder.decode(resp.Body, v)
 }
 
 // GetPropertySources returns all property sources flattened into a single map
