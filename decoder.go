@@ -3,30 +3,33 @@ package gocloudclient
 import (
 	"encoding/json"
 	"gopkg.in/yaml.v3"
+	"io"
 )
 
 type JsonDecoder struct {
 }
 
-func (dec JsonDecoder) decode(properties map[string]interface{}) (string, error) {
-	data, err := json.MarshalIndent(properties, "", " ")
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+func (dec JsonDecoder) confFormat() string {
+	return "json"
+}
+
+func (dec JsonDecoder) decode(body io.ReadCloser, v any) error {
+	return json.NewDecoder(body).Decode(v)
 }
 
 type YamlDecoder struct {
 }
 
-func (dec YamlDecoder) decode(properties map[string]interface{}) (string, error) {
-	data, err := yaml.Marshal(properties)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+func (dec YamlDecoder) confFormat() string {
+	return "yaml"
+}
+
+func (dec YamlDecoder) decode(body io.ReadCloser, v any) error {
+	return yaml.NewDecoder(body).Decode(v)
 }
 
 type Decoder interface {
-	decode(map[string]interface{}) (string, error)
+	decode(body io.ReadCloser, v any) error
+
+	confFormat() string
 }
